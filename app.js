@@ -201,6 +201,70 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
+// ============= ОТЗЫВЫ =============
+
+// Создание отзыва
+app.post('/api/reviews', async (req, res) => {
+    const { user_id, application_id, rating, review_text } = req.body;
+    
+    try {
+        const result = await db.query(
+            `INSERT INTO reviews (user_id, application_id, rating, review_text, created_at) 
+             VALUES ($1, $2, $3, $4, NOW()) 
+             RETURNING *`,
+            [user_id, application_id, rating, review_text]
+        );
+        
+        res.json({ success: true, review: result.rows[0] });
+    } catch (err) {
+        console.error('Ошибка создания отзыва:', err);
+        res.status(500).json({ error: 'Ошибка сервера при создании отзыва' });
+    }
+});
+
+// Получение отзывов пользователя
+app.get('/api/reviews/user/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    
+    try {
+        const result = await db.query(
+            `SELECT r.*, t.name as service_name 
+             FROM reviews r
+             LEFT JOIN applications a ON r.application_id = a.id
+             LEFT JOIN transport t ON a.transport_id = t.id
+             WHERE r.user_id = $1
+             ORDER BY r.created_at DESC`,
+            [userId]
+        );
+        
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Ошибка получения отзывов:', err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Удаление отзыва
+app.delete('/api/reviews/:reviewId', async (req, res) => {
+    const reviewId = req.params.reviewId;
+    
+    try {
+        const result = await db.query(
+            'DELETE FROM reviews WHERE id = $1 RETURNING *',
+            [reviewId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Отзыв не найден' });
+        }
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Ошибка удаления отзыва:', err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
 // ============= ЗАПУСК СЕРВЕРА =============
 const PORT = 3000;
 app.listen(PORT, () => {

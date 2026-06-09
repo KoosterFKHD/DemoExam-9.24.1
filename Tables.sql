@@ -60,3 +60,16 @@ INSERT INTO applications (status, user_id, methods_of_payment, start_time, trans
 ('Новая', 1, 'Банковская карта', NOW(), 1),
 ('Идет обучение', 2, 'Наличные', NOW(), 2),
 ('Обучение завершено', 3, 'Банковский перевод', NOW(), 3);
+
+--отзывы
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    application_id INTEGER NOT NULL,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_review_user FOREIGN KEY (user_id) REFERENCES User_a(id),
+    CONSTRAINT fk_review_application FOREIGN KEY (application_id) REFERENCES applications(id)
+);
