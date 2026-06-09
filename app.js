@@ -72,6 +72,55 @@ app.put('/api/admin/applications/:id/status', async (req, res) => {
     }
 });
 
+app.get('/api/admin/reviews/application/:applicationId', async (req, res) => {
+    const applicationId = req.params.applicationId;
+    console.log('Запрос отзывов для заявки ID:', applicationId);
+    
+    try {
+        // Сначала проверим, есть ли таблица reviews
+        const tableCheck = await db.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'reviews'
+            );
+        `);
+        
+        console.log('Таблица reviews существует:', tableCheck.rows[0].exists);
+        
+        if (!tableCheck.rows[0].exists) {
+            return res.status(500).json({ error: 'Таблица reviews не создана' });
+        }
+        
+        const result = await db.query(
+            `SELECT r.*, u.login, u.fcs as fullname
+             FROM reviews r
+             LEFT JOIN user_a u ON r.user_id = u.id
+             WHERE r.application_id = $1
+             ORDER BY r.created_at DESC`,
+            [applicationId]
+        );
+        
+        console.log('Найдено отзывов:', result.rows.length);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Ошибка получения отзывов:', err);
+        res.status(500).json({ error: 'Ошибка сервера: ' + err.message });
+    }
+});
+
+// Получение всех пользователей (для админа)
+app.get('/api/users', async (req, res) => {
+    try {
+        const result = await db.query(
+            'SELECT id, login, fcs, email, phone, date_of_birth, created_at FROM user_a'
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
 // ============= ПОЛЬЗОВАТЕЛЬСКИЕ МАРШРУТЫ =============
 
 // Регистрация
@@ -184,19 +233,6 @@ app.get('/api/applications/:userId', async (req, res) => {
         res.json(result.rows);
     } catch (err) {
         console.error('Ошибка получения заявок:', err);
-        res.status(500).json({ error: 'Ошибка сервера' });
-    }
-});
-
-// Получение всех пользователей (для админа)
-app.get('/api/users', async (req, res) => {
-    try {
-        const result = await db.query(
-            'SELECT id, login, fcs, email, phone, date_of_birth, created_at FROM user_a'
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });

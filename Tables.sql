@@ -73,3 +73,17 @@ CREATE TABLE IF NOT EXISTS reviews (
     CONSTRAINT fk_review_user FOREIGN KEY (user_id) REFERENCES User_a(id),
     CONSTRAINT fk_review_application FOREIGN KEY (application_id) REFERENCES applications(id)
 );
+
+--ТЕСТОВЫЕ ЗАЯВКИ
+
+INSERT INTO applications (status, user_id, methods_of_payment, start_time, transport_id) VALUES
+('Новая', 1, 'Банковская карта', NOW(), 1),
+('Идет обучение', 2, 'Наличные', NOW(), 2),
+('Обучение завершено', 3, 'Банковский перевод', NOW(), 3);
+
+--ТЕСТОВЫЕ ОТЗЫВЫ
+
+INSERT INTO reviews (user_id, application_id, rating, review_text, created_at) VALUES
+(1, 1, 5, 'Отличная автошкола! Инструкторы профессионалы. Всё понравилось!', NOW()),
+(2, 2, 4, 'Хорошее обучение, но немного долго записывали на практику.', NOW()),
+(3, 3, 5, 'Спасибо большое! Сдал экзамен с первого раза!', NOW());

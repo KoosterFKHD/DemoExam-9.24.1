@@ -11,7 +11,7 @@
             padding: 2rem;
         }
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
         .header {
@@ -144,6 +144,107 @@
             flex: 1;
             min-width: 200px;
         }
+        .btn-view-reviews {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-view-reviews:hover {
+            background: #059669;
+        }
+        
+        /* Модальное окно для отзывов */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+            position: relative;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .modal-header h3 {
+            color: #1e293b;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #94a3b8;
+        }
+        .close-modal:hover {
+            color: #ef4444;
+        }
+        .review-item {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #10b981;
+        }
+        .review-rating {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+        .star {
+            color: #fbbf24;
+            font-size: 1rem;
+        }
+        .star.empty {
+            color: #cbd5e1;
+        }
+        .review-text {
+            color: #475569;
+            line-height: 1.4;
+            margin-bottom: 0.5rem;
+        }
+        .review-date {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .no-reviews {
+            text-align: center;
+            color: #94a3b8;
+            padding: 2rem;
+        }
+        .application-info {
+            background: #eff6ff;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
         @media (max-width: 768px) {
             body { padding: 1rem; }
             th, td { padding: 0.5rem; font-size: 0.85rem; }
@@ -206,13 +307,26 @@
                         <th>Дата создания</th>
                         <th>Статус</th>
                         <th>Действия</th>
+                        <th>Отзывы</th>
                     </tr>
                 </thead>
                 <tbody id="applicationsBody">
-                    <tr><td colspan="10" class="loading">Загрузка заявок...</td></tr>
+                    <tr><td colspan="11" class="loading">Загрузка заявок...</td></tr>
                 </tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<!-- Модальное окно для отзывов -->
+<div id="reviewsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⭐ Отзывы о заявке</h3>
+            <button class="close-modal" onclick="closeModal()">&times;</button>
+        </div>
+        <div id="modalApplicationInfo" class="application-info"></div>
+        <div id="modalReviewsContainer"></div>
     </div>
 </div>
 
@@ -232,9 +346,17 @@
         return status;
     }
     
+    function renderStars(rating) {
+        let stars = '';
+        for (let i = 1; i <= 5; i++) {
+            stars += `<span class="star ${i <= rating ? '' : 'empty'}">★</span>`;
+        }
+        return stars;
+    }
+    
     async function loadApplications() {
         const tbody = document.getElementById('applicationsBody');
-        tbody.innerHTML = '<tr><td colspan="10" class="loading">Загрузка заявок...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="loading">Загрузка заявок...</td></tr>';
         
         try {
             const response = await fetch('/api/admin/applications');
@@ -243,7 +365,7 @@
             filterTable();
         } catch (error) {
             console.error('Ошибка загрузки:', error);
-            tbody.innerHTML = '<tr><td colspan="10" class="loading">❌ Ошибка загрузки заявок</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="loading">❌ Ошибка загрузки заявок</td></tr>';
         }
     }
     
@@ -265,12 +387,10 @@
         
         let filtered = allApplications;
         
-        // Фильтр по статусу
         if (statusFilter !== 'all') {
             filtered = filtered.filter(app => app.status === statusFilter);
         }
         
-        // Поиск по ФИО, логину, email
         if (searchTerm) {
             filtered = filtered.filter(app => 
                 (app.fullname && app.fullname.toLowerCase().includes(searchTerm)) ||
@@ -286,7 +406,7 @@
         const tbody = document.getElementById('applicationsBody');
         
         if (applications.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">Нет заявок</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">Нет заявок</td></tr>';
             return;
         }
         
@@ -308,6 +428,11 @@
                         <option value="Обучение завершено" ${app.status === 'Обучение завершено' ? 'selected' : ''}>🎓 Завершено</option>
                     </select>
                 </td>
+                <td>
+                    <button class="btn-view-reviews" onclick="showReviews(${app.id}, '${app.fullname || app.login}')">
+                        📖 Посмотреть отзыв(ы)
+                    </button>
+                </td>
             </tr>
         `).join('');
     }
@@ -324,19 +449,14 @@
             });
             
             if (response.ok) {
-                // Обновляем статус в локальном массиве
                 const app = allApplications.find(a => a.id === applicationId);
                 if (app) app.status = newStatus;
-                
                 updateStats();
                 filterTable();
-                
-                // Показываем уведомление
                 showNotification('Статус заявки обновлен!', 'success');
             } else {
                 const error = await response.json();
                 showNotification(error.error || 'Ошибка обновления статуса', 'error');
-                // Возвращаем старый статус в селекте
                 loadApplications();
             }
         } catch (error) {
@@ -344,6 +464,54 @@
             showNotification('Ошибка соединения с сервером', 'error');
             loadApplications();
         }
+    }
+    
+    // Показать отзывы в модальном окне
+async function showReviews(applicationId, userName) {
+    console.log('Показываю отзывы для заявки ID:', applicationId);
+    
+    const modal = document.getElementById('reviewsModal');
+    const modalInfo = document.getElementById('modalApplicationInfo');
+    const modalContainer = document.getElementById('modalReviewsContainer');
+    
+    modalInfo.innerHTML = `📋 Заявка #${applicationId} | Пользователь: ${userName}`;
+    modalContainer.innerHTML = '<div style="text-align:center; padding:2rem;">Загрузка отзывов...</div>';
+    modal.classList.add('active');
+    
+    try {
+        const response = await fetch(`/api/admin/reviews/application/${applicationId}`);
+        console.log('Ответ сервера:', response.status);
+        
+        const reviews = await response.json();
+        console.log('Получено отзывов:', reviews.length, reviews);
+        
+        if (reviews.length === 0) {
+            modalContainer.innerHTML = '<div class="no-reviews">📭 Отзывов на эту заявку пока нет</div>';
+        } else {
+            modalContainer.innerHTML = reviews.map(review => `
+                <div class="review-item">
+                    <div class="review-rating">${renderStars(review.rating)} <span style="margin-left:0.5rem; color:#64748b;">(${review.rating}/5)</span></div>
+                    <div class="review-text">${escapeHtml(review.review_text)}</div>
+                    <div class="review-date">${new Date(review.created_at).toLocaleString('ru-RU')}</div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки отзывов:', error);
+        modalContainer.innerHTML = '<div class="no-reviews">❌ Ошибка загрузки отзывов: ' + error.message + '</div>';
+    }
+}
+    
+    function closeModal() {
+        const modal = document.getElementById('reviewsModal');
+        modal.classList.remove('active');
+    }
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     function showNotification(message, type) {
@@ -369,26 +537,24 @@
         window.location.href = 'admin-login.html';
     }
     
-    // Добавляем стили для анимации
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
     `;
     document.head.appendChild(style);
     
-    // Загружаем заявки
-    loadApplications();
+    // Закрытие модального окна по клику вне его
+    window.onclick = function(event) {
+        const modal = document.getElementById('reviewsModal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    }
     
-    // Автообновление каждые 30 секунд
+    loadApplications();
     setInterval(loadApplications, 30000);
 </script>
 </body>
