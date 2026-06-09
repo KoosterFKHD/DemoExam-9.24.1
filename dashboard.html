@@ -47,6 +47,37 @@
             font-size: 1rem;
             color: #1e293b;
         }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #334155;
+        }
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            background: white;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            width: 100%;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -61,25 +92,53 @@
             font-weight: 600;
             color: #475569;
         }
-        button {
+        .logout-btn {
             background: #ef4444;
             color: white;
             border: none;
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             cursor: pointer;
-            font-size: 0.9rem;
         }
-        button:hover { background: #dc2626; }
+        .logout-btn:hover { background: #dc2626; }
         .status-badge {
             display: inline-block;
             padding: 0.25rem 0.5rem;
             border-radius: 0.25rem;
             font-size: 0.85rem;
         }
-        .status-waiting { background: #fef3c7; color: #92400e; }
-        .status-progress { background: #dbeafe; color: #1e40af; }
+        .status-new { background: #fef3c7; color: #92400e; }
+        .status-training { background: #dbeafe; color: #1e40af; }
         .status-completed { background: #dcfce7; color: #166534; }
+        .message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            display: none;
+        }
+        .message.success {
+            background: #dcfce7;
+            color: #166534;
+            display: block;
+        }
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            display: block;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            th, td { padding: 0.5rem; font-size: 0.85rem; }
+        }
     </style>
 </head>
 <body>
@@ -90,6 +149,32 @@
     </div>
     
     <div class="card">
+        <h2>📝 Подать заявку на обучение</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Транспортное средство</label>
+                <select id="transportSelect">
+                    <option value="1">🚌 Автобус</option>
+                    <option value="2">⚡ Электробус</option>
+                    <option value="3">🚋 Трамвай</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Способ оплаты</label>
+                <select id="paymentSelect">
+                    <option value="Банковская карта">💳 Банковская карта</option>
+                    <option value="Наличные">💰 Наличные</option>
+                    <option value="Банковский перевод">🏦 Банковский перевод</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <button class="btn-primary" onclick="createApplication()">📝 Оставить заявку</button>
+            </div>
+        </div>
+        <div id="createMessage" class="message"></div>
+    </div>
+    
+    <div class="card">
         <h2>📋 Мои заявки</h2>
         <div style="overflow-x: auto;">
             <table>
@@ -97,17 +182,19 @@
                     <tr>
                         <th>ID</th>
                         <th>Статус</th>
-                        <th>Оплата</th>
-                        <th>Время</th>
+                        <th>Способ оплаты</th>
+                        <th>Дата создания</th>
                         <th>Транспорт</th>
                     </tr>
                 </thead>
-                <tbody id="applications"></tbody>
+                <tbody id="applicationsBody">
+                    <tr><td colspan="5" style="text-align: center;">Загрузка...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
     
-    <button onclick="logout()">🚪 Выйти из аккаунта</button>
+    <button class="logout-btn" onclick="logout()">🚪 Выйти из аккаунта</button>
 </div>
 
 <script>
@@ -118,11 +205,16 @@
     
     const user = JSON.parse(currentUser);
     
-    // Форматирование даты
     function formatDate(dateString) {
         if (!dateString) return 'Не указана';
         const date = new Date(dateString);
         return date.toLocaleDateString('ru-RU');
+    }
+    
+    function formatDateTime(dateString) {
+        if (!dateString) return 'Не указана';
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU');
     }
     
     // Отображение информации о пользователе
@@ -150,9 +242,9 @@
     `;
     
     function getStatusBadge(status) {
-        if (status === 'Ожидает подтверждения') return '<span class="status-badge status-waiting">⏳ Ожидает</span>';
-        if (status === 'Выполняется') return '<span class="status-badge status-progress">🔄 Выполняется</span>';
-        if (status === 'Завершена') return '<span class="status-badge status-completed">✅ Завершена</span>';
+        if (status === 'Новая') return '<span class="status-badge status-new">🆕 Новая</span>';
+        if (status === 'Идет обучение') return '<span class="status-badge status-training">📚 Идет обучение</span>';
+        if (status === 'Обучение завершено') return '<span class="status-badge status-completed">🎓 Завершено</span>';
         return status;
     }
     
@@ -161,22 +253,68 @@
             const response = await fetch(`/api/applications/${user.id}`);
             const apps = await response.json();
             
-            const tbody = document.getElementById('applications');
+            const tbody = document.getElementById('applicationsBody');
             if (apps.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Нет заявок</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">📭 У вас пока нет заявок</td></tr>';
             } else {
                 tbody.innerHTML = apps.map(app => `
                     <tr>
                         <td>${app.id}</td>
                         <td>${getStatusBadge(app.status)}</td>
                         <td>${app.methods_of_payment || '-'}</td>
-                        <td>${new Date(app.start_time).toLocaleString('ru-RU')}</td>
-                        <td>${app.transport_name}</td>
+                        <td>${formatDateTime(app.start_time)}</td>
+                        <td>${app.transport_name || '-'}</td>
                     </tr>
                 `).join('');
             }
         } catch (error) {
             console.error('Ошибка загрузки заявок:', error);
+            document.getElementById('applicationsBody').innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">❌ Ошибка загрузки</td></tr>';
+        }
+    }
+    
+    async function createApplication() {
+        const transport_id = document.getElementById('transportSelect').value;
+        const methods_of_payment = document.getElementById('paymentSelect').value;
+        const msgDiv = document.getElementById('createMessage');
+        
+        try {
+            const response = await fetch('/api/applications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: user.id,
+                    transport_id: transport_id,
+                    methods_of_payment: methods_of_payment
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                msgDiv.className = 'message success';
+                msgDiv.textContent = '✅ Заявка успешно создана! Статус: Новая';
+                loadApplications(); // Обновляем список заявок
+                setTimeout(() => {
+                    msgDiv.style.display = 'none';
+                    msgDiv.className = 'message';
+                }, 3000);
+            } else {
+                msgDiv.className = 'message error';
+                msgDiv.textContent = data.error || '❌ Ошибка создания заявки';
+                setTimeout(() => {
+                    msgDiv.style.display = 'none';
+                    msgDiv.className = 'message';
+                }, 3000);
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            msgDiv.className = 'message error';
+            msgDiv.textContent = '❌ Ошибка соединения с сервером';
+            setTimeout(() => {
+                msgDiv.style.display = 'none';
+                msgDiv.className = 'message';
+            }, 3000);
         }
     }
     
@@ -185,6 +323,7 @@
         window.location.href = 'login.html';
     }
     
+    // Загружаем заявки при загрузке страницы
     loadApplications();
 </script>
 </body>

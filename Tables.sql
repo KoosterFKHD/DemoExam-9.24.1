@@ -45,3 +45,18 @@ INSERT INTO applications (status, user_id, methods_of_payment, start_time, trans
 ('Ожидает подтверждения', 1, 'Банконская карта', '2026-05-12 09:41:00', 1),
 ('Выполняется', 2, 'Банконская карта', '2026-10-07 14:26:10', 2),
 ('Завершена', 3, 'Банконский перевод', '2026-04-02 18:57:15', 3);
+
+-- Админка
+
+-- Добавляем статусы, если их нет
+ALTER TABLE applications ALTER COLUMN status SET DEFAULT 'Новая';
+
+-- Обновляем существующие статусы
+UPDATE applications SET status = 'Новая' WHERE status NOT IN ('Новая', 'Идет обучение', 'Обучение завершено');
+
+--Тестовые заявки
+
+INSERT INTO applications (status, user_id, methods_of_payment, start_time, transport_id) VALUES
+('Новая', 1, 'Банковская карта', NOW(), 1),
+('Идет обучение', 2, 'Наличные', NOW(), 2),
+('Обучение завершено', 3, 'Банковский перевод', NOW(), 3);

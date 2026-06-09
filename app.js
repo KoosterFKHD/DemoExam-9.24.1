@@ -5,14 +5,80 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// ============= API МАРШРУТЫ =============
+// ============= АДМИН-ДАННЫЕ =============
+const ADMIN_LOGIN = 'Admin26';
+const ADMIN_PASSWORD = 'Demo20';
 
-// Регистрация с новыми полями
+// ============= АДМИН-МАРШРУТЫ =============
+
+// Админ-вход
+app.post('/api/admin/login', (req, res) => {
+    const { login, password } = req.body;
+    
+    if (login === ADMIN_LOGIN && password === ADMIN_PASSWORD) {
+        res.json({ 
+            success: true, 
+            admin: { 
+                login: ADMIN_LOGIN,
+                role: 'admin'
+            } 
+        });
+    } else {
+        res.status(401).json({ error: 'Неверный логин или пароль администратора' });
+    }
+});
+
+// Получение всех заявок (для админа)
+app.get('/api/admin/applications', async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT a.*, u.login, u.fcs as fullname, u.email, u.phone, t.name as transport_name
+            FROM applications a
+            JOIN user_a u ON a.user_id = u.id
+            LEFT JOIN transport t ON a.transport_id = t.id
+            ORDER BY a.id DESC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Ошибка получения заявок:', err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Изменение статуса заявки (для админа)
+app.put('/api/admin/applications/:id/status', async (req, res) => {
+    const applicationId = req.params.id;
+    const { status } = req.body;
+    
+    const allowedStatuses = ['Новая', 'Идет обучение', 'Обучение завершено'];
+    if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Недопустимый статус' });
+    }
+    
+    try {
+        const result = await db.query(
+            'UPDATE applications SET status = $1 WHERE id = $2 RETURNING *',
+            [status, applicationId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Заявка не найдена' });
+        }
+        
+        res.json({ success: true, application: result.rows[0] });
+    } catch (err) {
+        console.error('Ошибка обновления статуса:', err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// ============= ПОЛЬЗОВАТЕЛЬСКИЕ МАРШРУТЫ =============
+
+// Регистрация
 app.post('/api/register', async (req, res) => {
     const { fullname, username, email, phone, birthdate, password } = req.body;
     
     try {
-        // Проверяем, есть ли такой пользователь
         const checkUser = await db.query(
             'SELECT * FROM user_a WHERE login = $1 OR email = $2',
             [username, email]
@@ -22,7 +88,6 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: 'Пользователь с таким логином или email уже существует' });
         }
         
-        // Добавляем нового пользователя (role_id = 1 - обычный пользователь)
         const result = await db.query(
             `INSERT INTO user_a (login, password, fcs, email, phone, date_of_birth, role_id) 
              VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -30,7 +95,7 @@ app.post('/api/register', async (req, res) => {
             [username, password, fullname, email, phone, birthdate, 1]
         );
         
-        console.log(`✅ Новый пользователь зарегистрирован: ${username}`);
+        console.log(`✅ Новый пользователь: ${username}`);
         
         res.json({ 
             success: true, 
@@ -49,7 +114,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// Вход
+// Вход пользователя
 app.post('/api/login', async (req, res) => {
     const { login, password } = req.body;
     
@@ -80,6 +145,25 @@ app.post('/api/login', async (req, res) => {
     } catch (err) {
         console.error('Ошибка входа:', err);
         res.status(500).json({ error: 'Ошибка сервера при входе' });
+    }
+});
+
+// Создание новой заявки
+app.post('/api/applications', async (req, res) => {
+    const { user_id, transport_id, methods_of_payment } = req.body;
+    
+    try {
+        const result = await db.query(
+            `INSERT INTO applications (status, user_id, methods_of_payment, start_time, transport_id) 
+             VALUES ($1, $2, $3, NOW(), $4) 
+             RETURNING *`,
+            ['Новая', user_id, methods_of_payment, transport_id]
+        );
+        
+        res.json({ success: true, application: result.rows[0] });
+    } catch (err) {
+        console.error('Ошибка создания заявки:', err);
+        res.status(500).json({ error: 'Ошибка сервера при создании заявки' });
     }
 });
 
@@ -117,13 +201,17 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
-// Запуск сервера
+// ============= ЗАПУСК СЕРВЕРА =============
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log('\n✅ СЕРВЕР ЗАПУЩЕН!');
     console.log('📍 http://localhost:3000\n');
-    console.log('📄 Страницы:');
-    console.log('http://localhost:3000/login.html');
-    console.log('http://localhost:3000/register.html');
-    console.log('http://localhost:3000/dashboard.html');
+    console.log('👨‍💻 ПОЛЬЗОВАТЕЛЬСКИЕ СТРАНИЦЫ:');
+    console.log('   - http://localhost:3000/login.html');
+    console.log('   - http://localhost:3000/register.html');
+    console.log('   - http://localhost:3000/dashboard.html\n');
+    console.log('👨‍💼 АДМИН-ПАНЕЛЬ:');
+    console.log('   - http://localhost:3000/admin-login.html');
+    console.log('   - Логин: Admin26');
+    console.log('   - Пароль: Demo20\n');
 });
