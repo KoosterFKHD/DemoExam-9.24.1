@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Личный кабинет</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui;
+            background: #f0f4f8;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2 { 
+            margin-bottom: 1rem; 
+            color: #1e293b; 
+            border-left: 4px solid #3b82f6; 
+            padding-left: 0.75rem; 
+        }
+        .user-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .detail-item {
+            padding: 0.5rem;
+            background: #f8fafc;
+            border-radius: 0.5rem;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+        .detail-value {
+            font-size: 1rem;
+            color: #1e293b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #475569;
+        }
+        button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        button:hover { background: #dc2626; }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.85rem;
+        }
+        .status-waiting { background: #fef3c7; color: #92400e; }
+        .status-progress { background: #dbeafe; color: #1e40af; }
+        .status-completed { background: #dcfce7; color: #166534; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h2>👤 Личная информация</h2>
+        <div id="userInfo" class="user-details"></div>
+    </div>
+    
+    <div class="card">
+        <h2>📋 Мои заявки</h2>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Статус</th>
+                        <th>Оплата</th>
+                        <th>Время</th>
+                        <th>Транспорт</th>
+                    </tr>
+                </thead>
+                <tbody id="applications"></tbody>
+            </table>
+        </div>
+    </div>
+    
+    <button onclick="logout()">🚪 Выйти из аккаунта</button>
+</div>
+
+<script>
+    const currentUser = localStorage.getItem('currentUser');
+    if (!currentUser) {
+        window.location.href = 'login.html';
+    }
+    
+    const user = JSON.parse(currentUser);
+    
+    // Форматирование даты
+    function formatDate(dateString) {
+        if (!dateString) return 'Не указана';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ru-RU');
+    }
+    
+    // Отображение информации о пользователе
+    document.getElementById('userInfo').innerHTML = `
+        <div class="detail-item">
+            <div class="detail-label">ФИО</div>
+            <div class="detail-value">${user.fullname || 'Не указано'}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Имя пользователя</div>
+            <div class="detail-value">${user.username}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Email</div>
+            <div class="detail-value">${user.email}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Телефон</div>
+            <div class="detail-value">${user.phone || 'Не указан'}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Дата рождения</div>
+            <div class="detail-value">${formatDate(user.birthdate)}</div>
+        </div>
+    `;
+    
+    function getStatusBadge(status) {
+        if (status === 'Ожидает подтверждения') return '<span class="status-badge status-waiting">⏳ Ожидает</span>';
+        if (status === 'Выполняется') return '<span class="status-badge status-progress">🔄 Выполняется</span>';
+        if (status === 'Завершена') return '<span class="status-badge status-completed">✅ Завершена</span>';
+        return status;
+    }
+    
+    async function loadApplications() {
+        try {
+            const response = await fetch(`/api/applications/${user.id}`);
+            const apps = await response.json();
+            
+            const tbody = document.getElementById('applications');
+            if (apps.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Нет заявок</td></tr>';
+            } else {
+                tbody.innerHTML = apps.map(app => `
+                    <tr>
+                        <td>${app.id}</td>
+                        <td>${getStatusBadge(app.status)}</td>
+                        <td>${app.methods_of_payment || '-'}</td>
+                        <td>${new Date(app.start_time).toLocaleString('ru-RU')}</td>
+                        <td>${app.transport_name}</td>
+                    </tr>
+                `).join('');
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки заявок:', error);
+        }
+    }
+    
+    function logout() {
+        localStorage.removeItem('currentUser');
+        window.location.href = 'login.html';
+    }
+    
+    loadApplications();
+</script>
+</body>
+</html>

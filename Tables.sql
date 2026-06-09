@@ -1,0 +1,47 @@
+CREATE TABLE Role_a (
+    id SERIAL PRIMARY KEY,
+    name varchar(255) NOT NULL
+);
+
+CREATE TABLE Transport (
+    id SERIAL PRIMARY KEY,
+    name varchar(255) NOT NULL
+);
+
+CREATE TABLE User_a (
+    id SERIAL PRIMARY KEY,
+    login varchar(25) NOT NULL UNIQUE,
+    password varchar(255) NOT NULL,
+    fcs varchar(255) NOT NULL,
+    email varchar(254) NOT NULL UNIQUE,
+    phone varchar(25) NOT NULL,
+    date_of_birth date NOT NULL,
+    role_id integer NOT NULL,
+    created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES Role_a(id)
+);
+
+CREATE TABLE applications (
+    id SERIAL PRIMARY KEY,
+    status varchar(255) NOT NULL,
+    user_id integer NOT NULL,
+    methods_of_payment varchar(55),
+    start_time timestamp,
+    transport_id integer NOT NULL,
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES User_a(id),
+    CONSTRAINT fk_transport FOREIGN KEY (transport_id) REFERENCES Transport(id)
+);
+
+INSERT INTO Role_a (name) VALUES ('Пользователь'), ('Администратор'), ('Менеджер');
+
+INSERT INTO Transport (name) VALUES ('Автобус'), ('Электробус'), ('Трамвай');
+
+INSERT INTO User_a (login, password, FCs, Email, Phone, Date_of_birth, role_id) VALUES
+('Rabaka_Vadim','123123','Рабака Вадим Сергеевич','RabakaVadim@mail.ru','+71111111111','02-04-2008', 1),
+('Petrin_Bob','123123','Петрин Боб Александрович','PetrinBob@mail.ru','+72222222222','01-02-2003', 2),
+('Gogin_Zen','123123','Гогин Зен Сидорович','GoginZen@mail.ru','+73333333333','03-02-2001', 3);
+
+INSERT INTO applications (status, user_id, methods_of_payment, start_time, transport_id) VALUES
+('Ожидает подтверждения', 1, 'Банконская карта', '2026-05-12 09:41:00', 1),
+('Выполняется', 2, 'Банконская карта', '2026-10-07 14:26:10', 2),
+('Завершена', 3, 'Банконский перевод', '2026-04-02 18:57:15', 3);

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Тест Express</title>
+</head>
+<body>
+    <h1>Express сервер работает!</h1>
+    <button onclick="getUsers()">Показать пользователей</button>
+    <div id="result"></div>
+
+    <script>
+        async function getUsers() {
+            const response = await fetch('/api/users');
+            const users = await response.json();
+            document.getElementById('result').innerHTML = 
+                '<pre>' + JSON.stringify(users, null, 2) + '</pre>';
+        }
+    </script>
+</body>
+</html>
