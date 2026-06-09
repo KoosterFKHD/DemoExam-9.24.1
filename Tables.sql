@@ -45,3 +45,45 @@ INSERT INTO applications (status, user_id, methods_of_payment, start_time, trans
 ('Ожидает подтверждения', 1, 'Банконская карта', '2026-05-12 09:41:00', 1),
 ('Выполняется', 2, 'Банконская карта', '2026-10-07 14:26:10', 2),
 ('Завершена', 3, 'Банконский перевод', '2026-04-02 18:57:15', 3);
+
+-- Админка
+
+-- Добавляем статусы, если их нет
+ALTER TABLE applications ALTER COLUMN status SET DEFAULT 'Новая';
+
+-- Обновляем существующие статусы
+UPDATE applications SET status = 'Новая' WHERE status NOT IN ('Новая', 'Идет обучение', 'Обучение завершено');
+
+--Тестовые заявки
+
+INSERT INTO applications (status, user_id, methods_of_payment, start_time, transport_id) VALUES
+('Новая', 1, 'Банковская карта', NOW(), 1),
+('Идет обучение', 2, 'Наличные', NOW(), 2),
+('Обучение завершено', 3, 'Банковский перевод', NOW(), 3);
+
+--отзывы
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    application_id INTEGER NOT NULL,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_review_user FOREIGN KEY (user_id) REFERENCES User_a(id),
+    CONSTRAINT fk_review_application FOREIGN KEY (application_id) REFERENCES applications(id)
+);
+
+--ТЕСТОВЫЕ ЗАЯВКИ
+
+INSERT INTO applications (status, user_id, methods_of_payment, start_time, transport_id) VALUES
+('Новая', 1, 'Банковская карта', NOW(), 1),
+('Идет обучение', 2, 'Наличные', NOW(), 2),
+('Обучение завершено', 3, 'Банковский перевод', NOW(), 3);
+
+--ТЕСТОВЫЕ ОТЗЫВЫ
+
+INSERT INTO reviews (user_id, application_id, rating, review_text, created_at) VALUES
+(1, 1, 5, 'Отличная автошкола! Инструкторы профессионалы. Всё понравилось!', NOW()),
+(2, 2, 4, 'Хорошее обучение, но немного долго записывали на практику.', NOW()),
+(3, 3, 5, 'Спасибо большое! Сдал экзамен с первого раза!', NOW());

@@ -5,14 +5,129 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// ============= API МАРШРУТЫ =============
+// ============= АДМИН-ДАННЫЕ =============
+const ADMIN_LOGIN = 'Admin26';
+const ADMIN_PASSWORD = 'Demo20';
 
-// Регистрация с новыми полями
+// ============= АДМИН-МАРШРУТЫ =============
+
+// Админ-вход
+app.post('/api/admin/login', (req, res) => {
+    const { login, password } = req.body;
+    
+    if (login === ADMIN_LOGIN && password === ADMIN_PASSWORD) {
+        res.json({ 
+            success: true, 
+            admin: { 
+                login: ADMIN_LOGIN,
+                role: 'admin'
+            } 
+        });
+    } else {
+        res.status(401).json({ error: 'Неверный логин или пароль администратора' });
+    }
+});
+
+// Получение всех заявок (для админа)
+app.get('/api/admin/applications', async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT a.*, u.login, u.fcs as fullname, u.email, u.phone, t.name as transport_name
+            FROM applications a
+            JOIN user_a u ON a.user_id = u.id
+            LEFT JOIN transport t ON a.transport_id = t.id
+            ORDER BY a.id DESC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Ошибка получения заявок:', err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Изменение статуса заявки (для админа)
+app.put('/api/admin/applications/:id/status', async (req, res) => {
+    const applicationId = req.params.id;
+    const { status } = req.body;
+    
+    const allowedStatuses = ['Новая', 'Идет обучение', 'Обучение завершено'];
+    if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Недопустимый статус' });
+    }
+    
+    try {
+        const result = await db.query(
+            'UPDATE applications SET status = $1 WHERE id = $2 RETURNING *',
+            [status, applicationId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Заявка не найдена' });
+        }
+        
+        res.json({ success: true, application: result.rows[0] });
+    } catch (err) {
+        console.error('Ошибка обновления статуса:', err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+app.get('/api/admin/reviews/application/:applicationId', async (req, res) => {
+    const applicationId = req.params.applicationId;
+    console.log('Запрос отзывов для заявки ID:', applicationId);
+    
+    try {
+        // Сначала проверим, есть ли таблица reviews
+        const tableCheck = await db.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'reviews'
+            );
+        `);
+        
+        console.log('Таблица reviews существует:', tableCheck.rows[0].exists);
+        
+        if (!tableCheck.rows[0].exists) {
+            return res.status(500).json({ error: 'Таблица reviews не создана' });
+        }
+        
+        const result = await db.query(
+            `SELECT r.*, u.login, u.fcs as fullname
+             FROM reviews r
+             LEFT JOIN user_a u ON r.user_id = u.id
+             WHERE r.application_id = $1
+             ORDER BY r.created_at DESC`,
+            [applicationId]
+        );
+        
+        console.log('Найдено отзывов:', result.rows.length);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Ошибка получения отзывов:', err);
+        res.status(500).json({ error: 'Ошибка сервера: ' + err.message });
+    }
+});
+
+// Получение всех пользователей (для админа)
+app.get('/api/users', async (req, res) => {
+    try {
+        const result = await db.query(
+            'SELECT id, login, fcs, email, phone, date_of_birth, created_at FROM user_a'
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// ============= ПОЛЬЗОВАТЕЛЬСКИЕ МАРШРУТЫ =============
+
+// Регистрация
 app.post('/api/register', async (req, res) => {
     const { fullname, username, email, phone, birthdate, password } = req.body;
     
     try {
-        // Проверяем, есть ли такой пользователь
         const checkUser = await db.query(
             'SELECT * FROM user_a WHERE login = $1 OR email = $2',
             [username, email]
@@ -22,7 +137,6 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: 'Пользователь с таким логином или email уже существует' });
         }
         
-        // Добавляем нового пользователя (role_id = 1 - обычный пользователь)
         const result = await db.query(
             `INSERT INTO user_a (login, password, fcs, email, phone, date_of_birth, role_id) 
              VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -30,7 +144,7 @@ app.post('/api/register', async (req, res) => {
             [username, password, fullname, email, phone, birthdate, 1]
         );
         
-        console.log(`✅ Новый пользователь зарегистрирован: ${username}`);
+        console.log(`✅ Новый пользователь: ${username}`);
         
         res.json({ 
             success: true, 
@@ -49,7 +163,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// Вход
+// Вход пользователя
 app.post('/api/login', async (req, res) => {
     const { login, password } = req.body;
     
@@ -83,6 +197,25 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// Создание новой заявки
+app.post('/api/applications', async (req, res) => {
+    const { user_id, transport_id, methods_of_payment } = req.body;
+    
+    try {
+        const result = await db.query(
+            `INSERT INTO applications (status, user_id, methods_of_payment, start_time, transport_id) 
+             VALUES ($1, $2, $3, NOW(), $4) 
+             RETURNING *`,
+            ['Новая', user_id, methods_of_payment, transport_id]
+        );
+        
+        res.json({ success: true, application: result.rows[0] });
+    } catch (err) {
+        console.error('Ошибка создания заявки:', err);
+        res.status(500).json({ error: 'Ошибка сервера при создании заявки' });
+    }
+});
+
 // Получение заявок пользователя
 app.get('/api/applications/:userId', async (req, res) => {
     const userId = req.params.userId;
@@ -104,26 +237,81 @@ app.get('/api/applications/:userId', async (req, res) => {
     }
 });
 
-// Получение всех пользователей (для админа)
-app.get('/api/users', async (req, res) => {
+// ============= ОТЗЫВЫ =============
+
+// Создание отзыва
+app.post('/api/reviews', async (req, res) => {
+    const { user_id, application_id, rating, review_text } = req.body;
+    
     try {
         const result = await db.query(
-            'SELECT id, login, fcs, email, phone, date_of_birth, created_at FROM user_a'
+            `INSERT INTO reviews (user_id, application_id, rating, review_text, created_at) 
+             VALUES ($1, $2, $3, $4, NOW()) 
+             RETURNING *`,
+            [user_id, application_id, rating, review_text]
         );
+        
+        res.json({ success: true, review: result.rows[0] });
+    } catch (err) {
+        console.error('Ошибка создания отзыва:', err);
+        res.status(500).json({ error: 'Ошибка сервера при создании отзыва' });
+    }
+});
+
+// Получение отзывов пользователя
+app.get('/api/reviews/user/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    
+    try {
+        const result = await db.query(
+            `SELECT r.*, t.name as service_name 
+             FROM reviews r
+             LEFT JOIN applications a ON r.application_id = a.id
+             LEFT JOIN transport t ON a.transport_id = t.id
+             WHERE r.user_id = $1
+             ORDER BY r.created_at DESC`,
+            [userId]
+        );
+        
         res.json(result.rows);
     } catch (err) {
-        console.error(err);
+        console.error('Ошибка получения отзывов:', err);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
-// Запуск сервера
+// Удаление отзыва
+app.delete('/api/reviews/:reviewId', async (req, res) => {
+    const reviewId = req.params.reviewId;
+    
+    try {
+        const result = await db.query(
+            'DELETE FROM reviews WHERE id = $1 RETURNING *',
+            [reviewId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Отзыв не найден' });
+        }
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Ошибка удаления отзыва:', err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// ============= ЗАПУСК СЕРВЕРА =============
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log('\n✅ СЕРВЕР ЗАПУЩЕН!');
     console.log('📍 http://localhost:3000\n');
-    console.log('📄 Страницы:');
-    console.log('http://localhost:3000/login.html');
-    console.log('http://localhost:3000/register.html');
-    console.log('http://localhost:3000/dashboard.html');
+    console.log('👨‍💻 ПОЛЬЗОВАТЕЛЬСКИЕ СТРАНИЦЫ:');
+    console.log('   - http://localhost:3000/login.html');
+    console.log('   - http://localhost:3000/register.html');
+    console.log('   - http://localhost:3000/dashboard.html\n');
+    console.log('👨‍💼 АДМИН-ПАНЕЛЬ:');
+    console.log('   - http://localhost:3000/admin-login.html');
+    console.log('   - Логин: Admin26');
+    console.log('   - Пароль: Demo20\n');
 });

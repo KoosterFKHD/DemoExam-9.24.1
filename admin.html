@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Панель управления - Администратор</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui;
+            background: #f0f4f8;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .stat-label {
+            color: #64748b;
+            margin-top: 0.5rem;
+        }
+        .applications-table {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .applications-table h2 {
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #475569;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background: #f1f5f9;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .status-new { background: #fef3c7; color: #92400e; }
+        .status-training { background: #dbeafe; color: #1e40af; }
+        .status-completed { background: #dcfce7; color: #166534; }
+        
+        select, button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            background: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            margin-left: 0.5rem;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        .filters {
+            padding: 1rem;
+            background: white;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filters input {
+            padding: 0.5rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            flex: 1;
+            min-width: 200px;
+        }
+        .btn-view-reviews {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-view-reviews:hover {
+            background: #059669;
+        }
+        
+        /* Модальное окно для отзывов */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+            position: relative;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .modal-header h3 {
+            color: #1e293b;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #94a3b8;
+        }
+        .close-modal:hover {
+            color: #ef4444;
+        }
+        .review-item {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #10b981;
+        }
+        .review-rating {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+        .star {
+            color: #fbbf24;
+            font-size: 1rem;
+        }
+        .star.empty {
+            color: #cbd5e1;
+        }
+        .review-text {
+            color: #475569;
+            line-height: 1.4;
+            margin-bottom: 0.5rem;
+        }
+        .review-date {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .no-reviews {
+            text-align: center;
+            color: #94a3b8;
+            padding: 2rem;
+        }
+        .application-info {
+            background: #eff6ff;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            th, td { padding: 0.5rem; font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div>
+            <h1>👨‍💼 Панель управления автошколой</h1>
+            <p style="margin-top: 0.5rem; opacity: 0.8;">Управление заявками на обучение</p>
+        </div>
+        <button class="logout-btn" onclick="logout()">🚪 Выйти</button>
+    </div>
+    
+    <div class="stats" id="stats">
+        <div class="stat-card">
+            <div class="stat-number" id="totalCount">0</div>
+            <div class="stat-label">Всего заявок</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="newCount">0</div>
+            <div class="stat-label">Новые</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="trainingCount">0</div>
+            <div class="stat-label">Идет обучение</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="completedCount">0</div>
+            <div class="stat-label">Обучение завершено</div>
+        </div>
+    </div>
+    
+    <div class="filters">
+        <input type="text" id="searchInput" placeholder="🔍 Поиск по ФИО, логину, email..." onkeyup="filterTable()">
+        <select id="statusFilter" onchange="filterTable()">
+            <option value="all">Все статусы</option>
+            <option value="Новая">Новые</option>
+            <option value="Идет обучение">Идет обучение</option>
+            <option value="Обучение завершено">Обучение завершено</option>
+        </select>
+        <button onclick="loadApplications()">🔄 Обновить</button>
+    </div>
+    
+    <div class="applications-table">
+        <h2>📋 Список всех заявок</h2>
+        <div style="overflow-x: auto;">
+            <table id="applicationsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>ФИО</th>
+                        <th>Логин</th>
+                        <th>Email</th>
+                        <th>Телефон</th>
+                        <th>Транспорт</th>
+                        <th>Способ оплаты</th>
+                        <th>Дата создания</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                        <th>Отзывы</th>
+                    </tr>
+                </thead>
+                <tbody id="applicationsBody">
+                    <tr><td colspan="11" class="loading">Загрузка заявок...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для отзывов -->
+<div id="reviewsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⭐ Отзывы о заявке</h3>
+            <button class="close-modal" onclick="closeModal()">&times;</button>
+        </div>
+        <div id="modalApplicationInfo" class="application-info"></div>
+        <div id="modalReviewsContainer"></div>
+    </div>
+</div>
+
+<script>
+    let allApplications = [];
+    
+    // Проверка авторизации админа
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminToken) {
+        window.location.href = 'admin-login.html';
+    }
+    
+    function getStatusBadge(status) {
+        if (status === 'Новая') return '<span class="status-badge status-new">🆕 Новая</span>';
+        if (status === 'Идет обучение') return '<span class="status-badge status-training">📚 Идет обучение</span>';
+        if (status === 'Обучение завершено') return '<span class="status-badge status-completed">🎓 Завершено</span>';
+        return status;
+    }
+    
+    function renderStars(rating) {
+        let stars = '';
+        for (let i = 1; i <= 5; i++) {
+            stars += `<span class="star ${i <= rating ? '' : 'empty'}">★</span>`;
+        }
+        return stars;
+    }
+    
+    async function loadApplications() {
+        const tbody = document.getElementById('applicationsBody');
+        tbody.innerHTML = '<tr><td colspan="11" class="loading">Загрузка заявок...</td></tr>';
+        
+        try {
+            const response = await fetch('/api/admin/applications');
+            allApplications = await response.json();
+            updateStats();
+            filterTable();
+        } catch (error) {
+            console.error('Ошибка загрузки:', error);
+            tbody.innerHTML = '<tr><td colspan="11" class="loading">❌ Ошибка загрузки заявок</td></tr>';
+        }
+    }
+    
+    function updateStats() {
+        const total = allApplications.length;
+        const newApps = allApplications.filter(a => a.status === 'Новая').length;
+        const training = allApplications.filter(a => a.status === 'Идет обучение').length;
+        const completed = allApplications.filter(a => a.status === 'Обучение завершено').length;
+        
+        document.getElementById('totalCount').textContent = total;
+        document.getElementById('newCount').textContent = newApps;
+        document.getElementById('trainingCount').textContent = training;
+        document.getElementById('completedCount').textContent = completed;
+    }
+    
+    function filterTable() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        
+        let filtered = allApplications;
+        
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(app => app.status === statusFilter);
+        }
+        
+        if (searchTerm) {
+            filtered = filtered.filter(app => 
+                (app.fullname && app.fullname.toLowerCase().includes(searchTerm)) ||
+                (app.login && app.login.toLowerCase().includes(searchTerm)) ||
+                (app.email && app.email.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        renderTable(filtered);
+    }
+    
+    function renderTable(applications) {
+        const tbody = document.getElementById('applicationsBody');
+        
+        if (applications.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">Нет заявок</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = applications.map(app => `
+            <tr>
+                <td>${app.id}</td>
+                <td><strong>${app.fullname || '-'}</strong></td>
+                <td>${app.login || '-'}</td>
+                <td>${app.email || '-'}</td>
+                <td>${app.phone || '-'}</td>
+                <td>${app.transport_name || '-'}</td>
+                <td>${app.methods_of_payment || '-'}</td>
+                <td>${app.start_time ? new Date(app.start_time).toLocaleString('ru-RU') : '-'}</td>
+                <td>${getStatusBadge(app.status)}</td>
+                <td>
+                    <select id="status-select-${app.id}" onchange="changeStatus(${app.id})">
+                        <option value="Новая" ${app.status === 'Новая' ? 'selected' : ''}>🆕 Новая</option>
+                        <option value="Идет обучение" ${app.status === 'Идет обучение' ? 'selected' : ''}>📚 Идет обучение</option>
+                        <option value="Обучение завершено" ${app.status === 'Обучение завершено' ? 'selected' : ''}>🎓 Завершено</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="btn-view-reviews" onclick="showReviews(${app.id}, '${app.fullname || app.login}')">
+                        📖 Посмотреть отзыв(ы)
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    async function changeStatus(applicationId) {
+        const select = document.getElementById(`status-select-${applicationId}`);
+        const newStatus = select.value;
+        
+        try {
+            const response = await fetch(`/api/admin/applications/${applicationId}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            
+            if (response.ok) {
+                const app = allApplications.find(a => a.id === applicationId);
+                if (app) app.status = newStatus;
+                updateStats();
+                filterTable();
+                showNotification('Статус заявки обновлен!', 'success');
+            } else {
+                const error = await response.json();
+                showNotification(error.error || 'Ошибка обновления статуса', 'error');
+                loadApplications();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка соединения с сервером', 'error');
+            loadApplications();
+        }
+    }
+    
+    // Показать отзывы в модальном окне
+async function showReviews(applicationId, userName) {
+    console.log('Показываю отзывы для заявки ID:', applicationId);
+    
+    const modal = document.getElementById('reviewsModal');
+    const modalInfo = document.getElementById('modalApplicationInfo');
+    const modalContainer = document.getElementById('modalReviewsContainer');
+    
+    modalInfo.innerHTML = `📋 Заявка #${applicationId} | Пользователь: ${userName}`;
+    modalContainer.innerHTML = '<div style="text-align:center; padding:2rem;">Загрузка отзывов...</div>';
+    modal.classList.add('active');
+    
+    try {
+        const response = await fetch(`/api/admin/reviews/application/${applicationId}`);
+        console.log('Ответ сервера:', response.status);
+        
+        const reviews = await response.json();
+        console.log('Получено отзывов:', reviews.length, reviews);
+        
+        if (reviews.length === 0) {
+            modalContainer.innerHTML = '<div class="no-reviews">📭 Отзывов на эту заявку пока нет</div>';
+        } else {
+            modalContainer.innerHTML = reviews.map(review => `
+                <div class="review-item">
+                    <div class="review-rating">${renderStars(review.rating)} <span style="margin-left:0.5rem; color:#64748b;">(${review.rating}/5)</span></div>
+                    <div class="review-text">${escapeHtml(review.review_text)}</div>
+                    <div class="review-date">${new Date(review.created_at).toLocaleString('ru-RU')}</div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки отзывов:', error);
+        modalContainer.innerHTML = '<div class="no-reviews">❌ Ошибка загрузки отзывов: ' + error.message + '</div>';
+    }
+}
+    
+    function closeModal() {
+        const modal = document.getElementById('reviewsModal');
+        modal.classList.remove('active');
+    }
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: ${type === 'success' ? '#10b981' : '#ef4444'};
+            color: white;
+            border-radius: 8px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+    
+    function logout() {
+        localStorage.removeItem('adminToken');
+        window.location.href = 'admin-login.html';
+    }
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Закрытие модального окна по клику вне его
+    window.onclick = function(event) {
+        const modal = document.getElementById('reviewsModal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    }
+    
+    loadApplications();
+    setInterval(loadApplications, 30000);
+</script>
+</body>
+</html>
